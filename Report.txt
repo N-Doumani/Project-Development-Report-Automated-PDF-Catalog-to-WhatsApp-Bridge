@@ -1,0 +1,62 @@
+# Project Development Report: Automated PDF Catalog to WhatsApp Bridge
+
+## 1. Project Overview & Objective
+
+The goal of this project was to automate the extraction of product catalogs from supplier PDF price lists (such as Logitech price sheets) and broadcast them directly to a WhatsApp group. For each valid product item, the system extracts the product image, calculates the retail selling price using custom markup tiers, retrieves the correct product name, and sends three consecutive messages: the product image, the product name, and the final price.
+
+---
+
+## 2. Technical Stack & Evolution
+
+* **Language:** Python 3.11
+* **PDF Parsing:** PyMuPDF (`fitz`) for image and text extraction.
+* **Browser Automation:** Playwright (`sync_api`) via a persistent Chromium session for WhatsApp Web interaction.
+* **Clipboard Automation:** PowerShell (`System.Windows.Forms`) for silent image copying.
+* **AI Data Extraction:** Google GenAI SDK (`google-genai` with `gemini-2.5-flash`) for parsing raw table text into clean, structured product data.
+
+---
+
+## 3. Problems Encountered and Solutions Applied
+
+### Problem 1: WhatsApp Web Initialization and Timeouts
+
+* **Issue:** Initially, the script utilized invite links (`chat.whatsapp.com`), which triggered desktop application prompts and caused `TimeoutError` exceptions. Running in headless mode also triggered anti-bot detection and blocked login state persistence.
+* **Solution:**
+1. Switched from invite links to automated chat searching by typing the exact group name (`KOMPEC`) directly into the WhatsApp Web search box.
+2. Implemented `headless=False` with a persistent user data directory (`whatsapp_session`) and spoofed user agents to maintain an authenticated session and avoid detection.
+
+
+
+### Problem 2: Evolving WhatsApp Web DOM Elements
+
+* **Issue:** WhatsApp frequent background updates caused standard selectors like `div[contenteditable="true"]` or `role="textbox"` to fail, resulting in connection and typing timeouts.
+* **Solution:** Updated selectors to include robust fallback queries (such as `p.selectable-text` and dynamic inputs) and modernized the input routine using direct keyboard simulation (`page.keyboard.type`) rather than raw value filling.
+
+### Problem 3: Locating the Attachment Button (`+`)
+
+* **Issue:** Locating the attachment button via `title="Attach"` or `data-icon="plus"` failed because WhatsApp localized the UI (e.g., changing it to Arabic labels or updating icon names like `attach-menu-plus`).
+* **Solution:** Bypassed the attachment menu entirely. Instead, the script leverages native operating system clipboard functionality via a PowerShell command to copy the extracted image directly, allowing it to simply click the chat box and paste using `Ctrl+V`.
+
+### Problem 4: Accidental Chat Closure via Escape Key
+
+* **Issue:** Early attempts to clear popups by pressing the `Escape` key caused WhatsApp Web to close the active group chat and return to the main screen right before pasting images.
+* **Solution:** Removed the `Escape` key press completely, relying instead on a direct sequence of clicking the chat box, pasting (`Control+v`), sending the image via `Enter`, and typing subsequent text messages in separate sequential lines.
+
+### Problem 5: Extraction of Irrelevant Images and Ads (Unknown Products)
+
+* **Issue:** PDF price lists contain corporate logos, promotional banners, and phone number footers. Extracting these produced garbage entries labeled as "Unknown Product" with default pricing.
+* **Solution:**
+1. Implemented dimension filters (ignoring images smaller than 150x150 pixels) and file-size filters (ignoring assets under 10KB).
+2. Integrated an AI parsing validation step that drops any extracted block not recognized as a valid retail product.
+
+
+
+### Problem 6: Inaccurate Text Splicing and Fragmented Names
+
+* **Issue:** Basic regex text parsing often captured only partial product categories (e.g., capturing "كيبورد سلكي" while omitting the specific brand and model on subsequent lines).
+* **Solution:** Integrated **Google Gemini API (`gemini-2.5-flash`)** to process messy table text blocks. The AI analyzes raw text rows contextually, filters out dates/stock statuses, and returns clean, standardized product names and prices in structured JSON format.
+
+### Problem 7: API SDK Changes and Deprecations
+
+* **Issue:** Transitioning to modern AI packages triggered deprecation warnings and `404 Not Found` errors when utilizing outdated model endpoints or legacy package structures (`google.generativeai`).
+* **Solution:** Migrated the codebase to the official current SDK (`google-genai`) utilizing the stable `gemini-2.5-flash` model endpoint with standard client initialization.
