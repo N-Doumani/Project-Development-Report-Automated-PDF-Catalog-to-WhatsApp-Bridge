@@ -1,5 +1,5 @@
 # Project Development Report: Automated PDF Catalog to WhatsApp Bridge
-
+#testing somthin new
 ## 1. Project Overview & Objective
 
 The goal of this project was to automate the extraction of product catalogs from supplier PDF price lists (such as Logitech price sheets) and broadcast them directly to a WhatsApp group. For each valid product item, the system extracts the product image, calculates the retail selling price using custom markup tiers, retrieves the correct product name, and sends three consecutive messages: the product image, the product name, and the final price.
